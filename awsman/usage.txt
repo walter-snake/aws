@@ -1,0 +1,359 @@
+==== General ====
+
+usage: awsman.py [mode] {parameters}
+  mode (decribed in detail below):
+  - help
+  - test-microsds
+  - test-logger
+  - station-insert
+  - station-show
+  - station-select
+  - station-disable
+  - station-enable
+  - station-delete
+  - station-config-delete
+  - set-logger
+  - streaming
+  - streaming-test
+  - data-upload
+  - data-getlog
+  - data-input
+  - data-show
+  - cache-show
+  - cache-purge
+  - cache-clear
+
+help {section}
+  section: the section of the help that you want to view (command)
+
+  Displays this help.
+  
+  E.g. help for streaming:
+  $> python awsman.py help streaming
+  
+  E.g. help for all station commands:
+  $> python awsman.py help station
+  
+  E.g. help for station-insert:
+  $> python awsman.py help station-insert
+
+startup
+  Keep in mind that you'll have to start python on Windows, and pass the
+  script name! On OSX/Linux you can simply start the script.
+  
+notation
+  In this help the following structure is followed:
+  [param]                required
+  [value1|value2|...]    required, choice
+  {optional_param}       optional
+  {option1|option2}      optional, choice
+  
+license
+  MIT License
+  Copyright 2014 W. Boasson
+
+test-microsds
+  Tests if the microsds service can be reached, and is responding properly.
+  The last line of the output should read:
+  INFO MicroSDS API version: {some_version} -> OK
+
+test-logger [comport]
+  comport:  the serial communication port to use, on Windows
+            typically COM3, options: port:auto, port:config or name.
+
+  Tests if awsman can connect to the Arduino logger, and displays a
+  message if successful.
+  
+  E.g. $> python awsman.py test-logger port:auto
+
+==== Station configuration ====
+
+station-insert "[station_name]" [lat,lon]
+  station_name: name of the measurement station (keep it short, I
+                recommend not to use personal names for internet safety)
+  lon,lat:      geographical longitude,latitude (use decimal point!)
+
+  Adds a measurement station to the server, and adds the station to the local
+  configuration database with measurement stations. The station will be
+  activated, and the  configuration will be written to the configuration file
+  (statconfig.ini).
+  
+  This configuration file will be used for all operations, you can switch
+  stations (e.g. if you use one computer to read out multiple weather stations
+  or have a mobile platform) using the command station-select.
+  
+  E.g. $> python awsman.py station-insert "My station" 52.3,5.1
+
+  Note: a key will be generated for inserting data into this specific station,
+  which is also locally stored. This mechanism assumes that a specific computer
+  is the measurement station. In case you need to use multiple computers that
+  actually perform measurements for the same station (location), you can copy
+  the statconfig.ini file (and if you like to, the configuration database:
+  ./data/config-cache.sqlite).
+  This is also a basic security measure: you can't insert data or manipulate the
+  stations without having the station key, which is not retrievable from the
+  server.
+  
+station-show
+  Shows all the stations that are in the LOCAL configuration database, as well
+  as the currently active configuration.
+
+station-select [id]
+  id: id of the station in the local configuration database.
+  Selects and activates a station configuration from the local configuration
+  database, obtain the id by issueing a station-show command.
+  
+  E.g. $> python awsman.py station-select 4
+
+  Note: the statconfig.ini file will be overwritten, so if you copied that one
+  from another computer, make a backup copy first.
+
+station-disable
+  Disables the measurement station, no data can be added anymore. This is only a
+  precaution against accidental inserts, not a privacy measure: anyone can
+  currently read the UUID from the webinterface and re-activate/use your
+  station.
+  
+  E.g. $> python awsman.py station-disable
+
+station-enable
+  Enables the measurement station, data can be added again.
+  
+  E.g. $> python awsman.py station-enable
+
+station-delete [id]
+  id: id of the station in the local configuration database.
+  Deletes the measurement station from the local configuration database and
+  from the server, including all data. If you want to leave the data on the
+  server, use station-config-delete instead.
+  
+  E.g. $> python awsman.py station-delete 6
+
+  Notes: you can not delete the currently active station.
+
+station-config-delete [id]
+  id: id of the station in the local configuration database.
+  Deletes the measurement station from the local configuration database.
+  The data will be left on the server, and still be accessible. Without
+  a copy of the configuration database (especially the key), you'll
+  never be able to control the measurement station!
+  
+  E.g. $> python awsman.py station-config-delete 6
+
+  Notes: you can not delete the currently active station configuration.
+
+==== Arduino configuration ====
+
+set-logger [comport] interval [interval] [millis|sec|min|hour|default]
+  comport:  the serial communication port to use, on Windows
+            typically COM3, options: port:auto, port:config or name.
+  interval: the measurement interval as a whole number (positive), e.g. 15
+
+  interval mode
+  Sets the default measurement interval, that will be used by the Arduino
+  after reset, startup or entering streaming mode. Special case: 0 default
+  resets it to the built in default.
+  
+  E.g. $> python awsman.py set-logger COM3 interval 15 min
+  E.g. $> python awsman.py set-logger COM3 interval 0 default
+
+
+set-logger [comport] startup [streaming|logger|default]
+  comport:  the serial communication port to use, on Windows
+            typically COM3, options: port:auto, port:config or name.
+
+  startup mode
+  Sets the measuring mode at start-up time, this determines the way it starts
+  measuring when you do not enter command mode. If you want your Arduino to
+  start logging without a pc attached (using a USB power plug), set it to
+  'logger'. If you want to download realtime with a pc attached, set it to
+  'streaming'.
+  startup: the measuring mode: log all data (store it on the device)
+           or streaming it to the pc
+
+  Note: After setting this configuration option, the Arduino remains in
+  command mode, it will not automatically start measuring. Reset it, or start
+  streaming mode.
+  
+  E.g. $> python awsman.py set-logger COM3 startup logger
+
+==== Data options ====
+
+streaming [comport] {interval}
+  comport:  the serial communication port to use, on Windows
+            typically COM3, options: port:auto, port:config or name.
+  interval: the measurement interval as a whole number (positive), specified in
+            seconds, you may leave out this option, in which case it will
+            use the built in default or interval set using the 'set-interval'
+            option
+
+  Starts the Arduino in streaming mode, in which case it will output data
+  every interval milliseconds, or with the default interval. The script
+  automatically catches the output, and tries to upload it to the server. You
+  may quit the script by typing Ctrl-c (hold the Ctrl key, press c). The
+  Arduino will continue running, and you may connect at any time by re-issueing
+  the command "awsman.py streaming comport". Reconnecting might fail when
+  running under Windows.
+  
+  Standard
+  E.g. $> python awsman.py streaming COM3
+  
+  Or, special case for measuring every minute
+  E.g. $> python awsman.py streaming COM3 60
+
+  Tip: use 'streaming-test' mode to get your hands on, this prevents upload to
+  the server.
+
+  Important notes:
+  - You can only start the Arduino in streaming mode during the command time-out
+    period, which is indicated by the orange led turned on, a few seconds after
+    reset or power on. The light will turn off after a while, and then you can't
+    enter streaming mode anymore (just power off-on or reset and you'll have a
+    new chance).
+  - The data will not be stored on the device.
+  - In case of an upload failure, the data will be cached on the computer (pc).
+  - Every 10 measurements it will check the cache for upload failures, and try
+    to resend cached data. Cached data will be cleared once sent.
+  - When starting the script in a mode that connects to the server, it will try
+    to send cached data.
+
+streaming-test [comport] {interval}
+  See 'streaming', the only major difference is that the data won't be send to
+  the server. Use this to get your hands on.
+
+data-getlog [comport] [starttimestamp]
+  comport:        the serial communication port to use, on Windows:
+                  typically COM3, options: port:auto, port:config or name.
+  starttimestamp: the timestamp of the first measurement in the datalog,
+                  format: YYYYMMDDTHHmmss
+                  (don't miss the T in the middle)
+
+  Download the datalog from the Arduino, and clear the memory after a
+  successfull download. The file will be named after the station_uuid and the
+  time of download.
+  
+  E.g. $>python awsman.py data-getlog COM3 20140121140100
+    Date and time in this example: January 21, 2014, 2:01:00 PM
+
+data-show
+  Displays a list of all downloaded data files (data-getlog), and shows the 
+  processed contents as it will be sent when uploading (data-upload). Displays a
+  table for all files that not have been uploaded yet. The processing involves
+  adding timestamps to the data, according to the timestamp and interval in the
+  header of the file.
+  Only files belonging to the currently active station configuration are processed (statconfig.ini).
+  
+  It is possible to edit the file using e.g. "Notepad", to remove data, or 
+  change the starttime. Typically, you shouldn't change the interval, as this is
+  downloaded from the Arduino, however changing the interval (using the 
+  set-interval option) before downloading the data messes things up...
+  
+  E.g. $>python awsman.py data-show
+
+data-upload
+  Uploads stored data to the server from all data files that not have been
+  uploaded before. The files that gave been uploaded get a file with the same
+  name, and extension .done, this files contains the date of upload.
+  Only files belonging to the currently active station configuration are processed (statconfig.ini).
+  
+  E.g. $>python awsman.py data-upload
+  
+  No caching will take place in case of errors, the full file will be uploaded
+  again when running the command again.
+
+  Note: although the measurement station id is in the uploaded file, you can
+  only upload it when if the file matches the currently active local station
+  configuration (security key and station must mutch).
+
+data-input
+  Manually enter the data, one by one. The script will ask you for the
+  information. Be carefull with the date format, it should be specified exactly
+  as requested! The data will be uploaded immediately, and cached when the
+  upload fails. When starting the script in a mode that connects to the server,
+  it will check for cached data to send again.
+  
+==== Cache options ====
+
+cache-show
+  Shows the contents of the cache, in a pretty raw format, as it is a not
+  often needed: an option for specialists. You'll probably never need it.
+
+  It will show the data from any measurement station, regardless of the current
+  configuration.
+
+cache-purge
+  Tries to purge the cache: upload all cached data and remove uploaded data
+  from the cache. This will happen automatically when in streaming mode every
+  10 samples, and at every program start, except for the help and cache modes.
+  It will upload data from the currently selected station configuration.
+  
+  Purging the cache takes place automatically in every mode that actually
+  connects to the server and deals with data:
+  - streaming (once every 10 measurements)
+  - data-upload
+  - data-input
+  
+cache-clear
+  Drops the entire cache database and rebuilds it.
+  It will clear the data from any measurement station, REGARDLESS of the
+  currently selected station configuration.
+
+==== Notes for Windows ====
+
+windows-start
+  You need to start Python with the name of the script and all the parameters
+  from the commandline. You should start it from the current directory. The best
+  thing to do is:
+    1. open a cmd.exe window (Start menu, Run: cmd.exe).
+    2. change to the directory where you unzipped the software, e.g.
+       $> cd \gmd\\awsman
+    3. start the software, e.g. ..\python27\python awsman.py help
+
+windows-serial-port
+  Serial port: on Windows typically COM3, Windows might reset the Arduino after
+  connecting. Check the COM number in the device manager (Control panel).
+  Special options: port:auto or port:config, both read the port name from
+  the file awsmanconfig.py (defaults to COM3). E.g.
+  $> python awsman.py streaming port:config
+
+==== Notes for OSX ====
+
+osx-start
+  On the Mac, the python software is part of your system. You might have to
+  install the pyserial extension to use the serial port.
+  Start the script from the current directory. How to:
+    1. start the Terminal app
+    2. change to the directory where you unzipped the software, e.g.
+       $> cd ~/GMD/awsman (the tilde means your home dir)
+    3. start the software, e.g. ./awsman.py help
+  
+  When this does not work, use:
+  $> python awsman.py
+
+osx-serial port
+  On a Mac (OSX) the serial port is called something like /dev/tty.usbmodem1d11.
+  Typically you don't have usbmodem devices, so you may use a trick to
+  automatically find the appropriate port, one of the handy secrets of *nix
+  systems:
+  
+  $> ./awsman.py streaming `ls -1 /dev/tty.usbmodem*` 10000
+  
+  You can also use the option: port:auto (which does this for you).
+  Another option is to put the desired port in awsmanconfig.py, and use as port
+  name port:config. E.g.
+  $> ./awsman.py streaming port:auto
+
+==== Installation notes ====
+
+install
+  The awsman.py script needs a subdirectory immediately below the script dir
+  named 'data', with write access, also the directory where the script
+  resides needs write access (data download, caching, station configuration).
+  
+  One configuration file needs to be created in the script dir: config.py
+  Contents:
+  AWSERVER="http://my.server.forupload/service"
+  SERIALPORT="device_name_of_the_serial_port"
+  
+  The serial port name: see the notes for Windows or OSX.
+  Do not omit the quotes: the file is imported as a python file.

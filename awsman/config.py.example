@@ -1,0 +1,4 @@
+# only http, for https modify libawsman.py (documented)
+MSDSERVER="my.server.name"
+MSDSERVERPATH="/myservice"
+SERIALPORT="COM3"

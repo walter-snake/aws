@@ -34,3 +34,13 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# My data
+*.awd
+*.done
+*.sqlite
+*.ini
+*temp*
+config.py
+.DS_Store
+*private*
