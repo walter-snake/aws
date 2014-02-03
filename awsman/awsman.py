@@ -71,8 +71,9 @@ def testGenerateConfig():
     sys.exit()
 
 # The various online modi, note that streaming and data input are missing here:
-# they automatically cache stuff and can be used offline
-onlinemodi = ['test-microsds', 'station-insert', 'station-delete'
+# they automatically cache stuff and can be used offline, test-microsds also
+# missing: test would otherwise be executed twice
+onlinemodi = ['station-insert', 'station-delete'
     , 'station-disable', 'station-enable'
     , 'data-upload', 'cache-purge']
 
