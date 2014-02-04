@@ -108,19 +108,19 @@ void fastBlink(int n)
 {
   for (int i = 1; i <= n; i++)
   {
-    if (commandMode)
+    if (enableMeasurement)
     {
-      pinMode(13, HIGH);
-      delay(50);
       pinMode(13, LOW);
-      delay(50);
+      delay(75);
+      pinMode(13, HIGH);
+      delay(75);
     }
     else
     {
-      pinMode(13, LOW);
-      delay(50);
       pinMode(13, HIGH);
-      delay(50);
+      delay(75);
+      pinMode(13, LOW);
+      delay(75);
     }
   }
 }

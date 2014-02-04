@@ -129,8 +129,6 @@ station-delete [id]
   
   E.g. $> python awsman.py station-delete 6
 
-  Notes: you can not delete the currently active station.
-
 station-config-delete [id]
   id: id of the station in the local configuration database.
   Deletes the measurement station from the local configuration database.
@@ -139,8 +137,6 @@ station-config-delete [id]
   never be able to control the measurement station!
   
   E.g. $> python awsman.py station-config-delete 6
-
-  Notes: you can not delete the currently active station configuration.
 
 ==== Arduino configuration ====
 
@@ -152,7 +148,7 @@ set-logger [comport] interval [interval] [millis|sec|min|hour|default]
   interval mode
   Sets the default measurement interval, that will be used by the Arduino
   after reset, startup or entering streaming mode. Special case: 0 default
-  resets it to the built in default.
+  resets it to the built in default (which is streaming).
   
   E.g. $> python awsman.py set-logger COM3 interval 15 min
   E.g. $> python awsman.py set-logger COM3 interval 0 default
@@ -198,7 +194,7 @@ streaming [comport] {interval}
   Standard
   E.g. $> python awsman.py streaming COM3
   
-  Or, special case for measuring every minute
+  Or, for measuring every minute
   E.g. $> python awsman.py streaming COM3 60
 
   Tip: use 'streaming-test' mode to get your hands on, this prevents upload to
@@ -211,9 +207,10 @@ streaming [comport] {interval}
     enter streaming mode anymore (just power off-on or reset and you'll have a
     new chance).
   - The data will not be stored on the device.
-  - In case of an upload failure, the data will be cached on the computer (pc).
-  - Every 10 measurements it will check the cache for upload failures, and try
-    to resend cached data. Cached data will be cleared once sent.
+  - In case of an upload failure, the data will be cached on the computer (pc)
+    for the next 30 seconds, when it will try to resume normal operation.
+  - It will try to resend cached data every 10 minutes. Cached data will be
+    cleared once sent.
   - When starting the script in a mode that connects to the server, it will try
     to send cached data.
 
@@ -269,8 +266,7 @@ data-input
   Manually enter the data, one by one. The script will ask you for the
   information. Be carefull with the date format, it should be specified exactly
   as requested! The data will be uploaded immediately, and cached when the
-  upload fails. When starting the script in a mode that connects to the server,
-  it will check for cached data to send again.
+  upload fails (it may also try to upload data already in the cache).
   
 ==== Cache options ====
 
@@ -289,7 +285,7 @@ cache-purge
   
   Purging the cache takes place automatically in every mode that actually
   connects to the server and deals with data:
-  - streaming (once every 10 measurements)
+  - streaming (once every 10 minutes)
   - data-upload
   - data-input
   
@@ -306,14 +302,14 @@ windows-start
   thing to do is:
     1. open a cmd.exe window (Start menu, Run: cmd.exe).
     2. change to the directory where you unzipped the software, e.g.
-       $> cd \gmd\\awsman
-    3. start the software, e.g. ..\python27\python awsman.py help
+       $> cd \gmd\awsman
+    3. start the software, e.g. Drive:\path\to\python\python awsman.py help
 
 windows-serial-port
   Serial port: on Windows typically COM3, Windows might reset the Arduino after
   connecting. Check the COM number in the device manager (Control panel).
   Special options: port:auto or port:config, both read the port name from
-  the file awsmanconfig.py (defaults to COM3). E.g.
+  the file config.py (defaults to COM3). E.g.
   $> python awsman.py streaming port:config
 
 ==== Notes for OSX ====
@@ -339,7 +335,7 @@ osx-serial port
   $> ./awsman.py streaming `ls -1 /dev/tty.usbmodem*` 10000
   
   You can also use the option: port:auto (which does this for you).
-  Another option is to put the desired port in awsmanconfig.py, and use as port
+  Another option is to put the desired port in config.py, and use as port
   name port:config. E.g.
   $> ./awsman.py streaming port:auto
 
@@ -350,10 +346,15 @@ install
   named 'data', with write access, also the directory where the script
   resides needs write access (data download, caching, station configuration).
   
+  When starting awsman.py for the first time, it will ask you for the
+  MSDSERVER, MSDSERVERPATH and SERIALPORT, see below for the meaning.
+  
   One configuration file needs to be created in the script dir: config.py
   Contents:
-  AWSERVER="http://my.server.forupload/service"
+  MSDSERVER="my.server.forupload"
+  MSDSERVERPATH="/my/microsds/dir"
   SERIALPORT="device_name_of_the_serial_port"
   
   The serial port name: see the notes for Windows or OSX.
   Do not omit the quotes: the file is imported as a python file.
+

@@ -10,6 +10,7 @@ import re
 import httplib,urllib
 import sqlite3
 import os, sys
+import time
 import datetime
 import xml.dom.minidom
 from datetime import datetime
@@ -22,13 +23,15 @@ except:
 
 apiversion = "1.0"
 weather_logger_version = "1"
+HTTPTIMEOUTERRORTIME=time.time()
+HTTPTIMEOUT=15
 
 # If you need to use https: change the HTTPConnection into HTTPSConnection.
 
 # Test microsds
 def testMicroSdsConfig():
   try:
-    conn = httplib.HTTPConnection(MSDSERVER, 80, timeout=10)
+    conn = httplib.HTTPConnection(MSDSERVER, 80, timeout=HTTPTIMEOUT)
     conn.request("GET", MSDSERVERPATH + "/measurements.php?Operation=Test")
     r = conn.getresponse()
     status = 0
@@ -124,15 +127,24 @@ def enableStation(statuuid, statkey):
 
 # insert a measurement into the database
 def insertMeasurement(statuuid, statkey, measurementtime, param, value, fromcache):
-  # a bit ugly, simulate an httperror in case connection cannot be made (which will crash the app)
+  # a bit ugly, simulate an httperror in case connection cannot be made
   httpstatus = 0
+  # Reset http timeout time after a certain amount of time
+  global HTTPTIMEOUTERRORTIME
+  global HTTPTIMEOUT
+  if time.time() - HTTPTIMEOUTERRORTIME >= 30: # just reset the timeout, when old enough
+    HTTPTIMEOUT=15
   try:
-    conn = httplib.HTTPConnection(MSDSERVER, 80, timeout=15)
+    conn = httplib.HTTPConnection(MSDSERVER, 80, timeout=HTTPTIMEOUT)
     conn.request("GET", MSDSERVERPATH + "/measurements.php?Operation=InsertMeasurement&UUID=" + str(statuuid).strip() + "&Key=" + str(statkey).strip() + "&MeasuredProperty=" + param.strip() + "&MeasuredValue=" + str(value).strip() + "&MeasurementTime=" + measurementtime.strip())
     r = conn.getresponse()
     httpstatus = r.status
   except:
-    httpstatus = 0 # this is sort of true: it typically crashes here when there's no connection at all
+    httpstatus = 0 # this is sort of true: timeout/no response
+    # to prevent cache uploads from stalling everything, make sure it breaks out fast in case of a timeout
+    if HTTPTIMEOUT > 0: # only set timeouterrortime at the first occurence of a timeout
+      HTTPTIMEOUTERRORTIME = time.time()
+    HTTPTIMEOUT=0 # in case of an error, effectively disable sending (for so many seconds: 30)
 
   state = 1
   if (httpstatus == 200):
@@ -141,7 +153,7 @@ def insertMeasurement(statuuid, statkey, measurementtime, param, value, fromcach
     if result.find('ERROR') >= 0:
       if not fromcache:
         cacheMeasurement(statuuid.strip(), measurementtime.strip(), param.strip(), str(value).strip())
-      print "ERROR Detected an error, I will cache your measurement"
+      print "ERROR Detected an error, I will cache your measurement: "
       state = 1
     else:
       state = 0
@@ -419,27 +431,41 @@ def deleteStatConfig(activestatuuid, id, mode):
   l = c.fetchone()
   statuuid = l[1]
   statkey = l[2]
+  statname = l[3]
+  conn.commit()
+  conn.close()
 
   if activestatuuid == statuuid:
     print ""
-    print "You can't delete the currently active station"
+    print "WARNING: You are about to delete the currently ACTIVE station!"
     print ""
-  else:
-    if mode == 'config-server':
-      print "Do you really want to delete the station from the server, including all measurements?"
-      drop = raw_input("WARNING: ALL DATA FOR THIS STATION (" + str(l[3]) + ") WILL BE LOST! [NO|yes]: ")
-      if drop == "yes":
-        print "Asking server to remove station and associated data..."
-        if deleteStation(statuuid, statkey) == 0:
-          sql = "DELETE FROM station_cache WHERE rowid = ?;"
-          c.execute(sql, [id,])
-          print "Station removed from local config database."
-    elif mode == 'config-only':
-      print "Do you really want to delete the station configuration?"
-      drop = raw_input("WARNING: YOU WILL NOT BE ABLE TO MANAGE THE STATION (" + str(l[3]) + ") ANYMORE! [NO|yes]: ")
-      if drop == "yes":
-        sql = "DELETE FROM station_cache WHERE rowid = ?;"
-        c.execute(sql, [id,])
-        print "Station removed from local config database."
+
+  if mode == 'config-server':
+    print "Do you really want to delete the station from the server, including all measurements?"
+    print "WARNING: YOU WILL NOT BE ABLE TO MANAGE THE STATION (" + str(statname) + ") ANYMORE!"
+    print "WARNING: ALL DATA FOR THIS STATION (" + str(statname) + ") WILL BE LOST!"
+    drop = raw_input("Enter the name of the station to continue: ")
+    if drop == statname:
+      print "Asking server to remove station and associated data..."
+      if deleteStation(statuuid, statkey) == 0:
+        dropLocalStatConfig(id)
+  elif mode == 'config-only':
+    print "Do you really want to delete the station configuration?"
+    print "WARNING: YOU WILL NOT BE ABLE TO MANAGE THE STATION (" + str(statname) + ") ANYMORE!"
+    drop = raw_input("Enter the name of the station to continue: ")
+    if drop == statname:
+      dropLocalStatConfig(id)
+
+  if activestatuuid == statuuid and drop == statname:
+    os.remove('statconfig.ini')
+    print "INFO: The station configuration file has been removed!"
+
+def dropLocalStatConfig(id):
+  localDb = "config-cache.sqlite"
+  conn = sqlite3.connect(localDb)
+  c = conn.cursor()
+  sql = "DELETE FROM station_cache WHERE rowid = ?;"
+  c.execute(sql, [id,])
+  print "Station removed from local config database."
   conn.commit()
   conn.close()

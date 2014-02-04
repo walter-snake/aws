@@ -245,7 +245,7 @@ if (mode == "station-insert"):
 # At this point, a station file should exist. If not, exit.
 if (not os.path.exists('statconfig.ini')):
   print "\nStation file not present, exiting."
-  print 'Add a station first, before continuing, using: awsman.py station-insert "station name" lat lon.'
+  print 'Add a station first, before continuing, using: awsman.py station-insert "station name" lat,lon'
   sys.exit()
 
 # Config ################################################################
@@ -374,7 +374,8 @@ if (mode == "streaming" or mode == "streaming-test"):
     print "* ERROR Missing commandline arguments *\n"
     printHelp('streaming')
     sys.exit()
-  mcount = 10 # this many streaming measurements before trying to purge the error cache
+  cachewait = 600 # wait 10 minutes before trying to empty the cache
+  cachetimer = time.time() # this many seconds of measurements before trying to purge the error cache
   purgeCache(statuuid, statkey) # empty cache
   print "\nStreaming measurement mode"
   if (len(sys.argv) == 4):
@@ -394,7 +395,6 @@ if (mode == "streaming" or mode == "streaming-test"):
   s.write(cmd)
   print "Waiting for data..."
   while True:
-    mcount -= 1 # count down to decide when to upload the cache
     line = s.readline()
     millis = float(line.split(",")[0])
     temp = float(line.split(",")[1])
@@ -409,9 +409,9 @@ if (mode == "streaming" or mode == "streaming-test"):
       insertMeasurement(statuuid, statkey, mtime, "humid", str(humid), False)
       insertMeasurement(statuuid, statkey, mtime, "baro", str(baro), False)
     # Try to upload the cache (when not in test mode)
-    if mode == "streaming" and mcount == 0:
+    if mode == "streaming" and ((time.time() - cachetimer) >= cachewait):
       purgeCache(statuuid, statkey) # empty cache
-      mcount = 10 # reset counter
+      cachetimer = time.time() # reset counter
 
 # Offline mode: download/upload ################################################################
 # Upload to the server
