@@ -174,6 +174,31 @@ if (mode == "test-microsds"):
   testMicroSdsConfig()
   sys.exit()
 
+# Test logger ########################################
+if (mode == "test-logger"):
+  if len(sys.argv) < 3:
+    print "* ERROR Missing commandline arguments *\n"
+    printHelp('test-logger')
+    sys.exit()
+  print "\nTest logger connection and version"
+
+  ttyport=getSerialPort(sys.argv[2])
+  s = serial.Serial(ttyport, baudrate=9600)
+  cmd="03\n"
+  s.write(cmd)
+  print "Sending command: " + str(cmd).strip()
+
+  line = ""
+  while (not line.startswith("# Software version")):
+    line = s.readline().strip()
+    print line
+  # Last line contains version information
+  if line.split(" ")[3] == weather_logger_version:
+    print "Weather logger version OK."
+  else:
+    print "WARNING: Weather logger version mismatch, the combination might not work!"
+  print ""
+
 # Create the cache db, if neccessary
 prepareCacheDb()
 prepareConfigDb()
@@ -271,32 +296,6 @@ if (mode == "station-disable"):
 
 if (mode == "station-enable"):
   enableStation(statuuid, statkey)
-
-# Test logger ########################################
-# Set logger options #################################
-if (mode == "test-logger"):
-  if len(sys.argv) < 3:
-    print "* ERROR Missing commandline arguments *\n"
-    printHelp('test-logger')
-    sys.exit()
-  print "\nTest logger connection and version"
-
-  ttyport=getSerialPort(sys.argv[2])
-  s = serial.Serial(ttyport, baudrate=9600)
-  cmd="03\n"
-  s.write(cmd)
-  print "Sending command: " + str(cmd).strip()
-
-  line = ""
-  while (not line.startswith("# Software version")):
-    line = s.readline().strip()
-    print line
-  # Last line contains version information
-  if line.split(" ")[3] == weather_logger_version:
-    print "Weather logger version OK."
-  else:
-    print "WARNING: Weather logger version mismatch, the combination might not work!"
-  print ""
 
 # Set logger options #################################
 if (mode == "set-logger"):
