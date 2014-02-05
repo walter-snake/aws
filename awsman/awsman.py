@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 # -*- coding: ascii -*-
 
 # we do need a few libraries (pretty standard ones, except for serial, which might have to be installed)
@@ -401,7 +401,7 @@ if (mode == "streaming" or mode == "streaming-test"):
   while True:
     received = s.readline().strip()
     if not received.startswith("^") or not received.endswith("$"):
-      print "WARNING Ignoring incomplete line of data"
+      print "WARNING Ignoring incomplete line of data or error: " + str(received)
     else:
       line = received.strip('^$')
       millis = float(line.split(",")[0])

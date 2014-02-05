@@ -333,7 +333,6 @@ void printSerialString() {
   if( serInIndx > 0) {       
     if (DEBUG) {
       Serial.print("Received: "); 
-      // intPosition = 10;
     }
     
     for(serOutIndx=0; serOutIndx < serInIndx; serOutIndx++) {
@@ -432,13 +431,20 @@ void setup()
   Serial.begin(9600); 
   Serial.flush();
   
+  fastBlink(20); // Inform user that setup routine has started and Serial port is active
+  delay(5000); // gives the time to open the monitor and catch any output
+  
   // Setup sensors
-  dht.begin(); // start sensor Temp, Humidity  
+  dht.begin();
   if(!bmp.begin()) // start sensor Barometric P
   {
     /* There was a problem detecting the BMP085 ... check your connections */
-    sendSerialString("# WARNING no BMP085 detected");
+    sendSerialString("WARNING no BMP085 detected");
     bmpPresent = false;
+  }
+  else
+  {
+    sendSerialString("INFO BMP085 detected");
   }
 
   // We need to wait a while after initializing the sensors
@@ -478,8 +484,8 @@ void loop()
     pinMode(13, HIGH);
         
     // T, H data
-    float h = dht.readHumidity();
     float t = dht.readTemperature();
+    float h = dht.readHumidity();
     
     // BP data: get a new sensor event, only if sensor present (we might need the software with only the dht present)
     float b;
