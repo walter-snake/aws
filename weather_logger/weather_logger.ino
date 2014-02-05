@@ -23,7 +23,7 @@ THE SOFTWARE.
 */
 
 boolean DEBUG = false; //
-int version = 1; // the software version
+int version = 2; // the software version (2: streaming output changed) 
 
 // Inlcude libraries
 #include <EEPROM.h> // r/w to eeprom for permanent storage
@@ -216,6 +216,20 @@ void sendData()
   pinMode(13, LOW); // led on
 }
 
+// Stream measured data: send one line
+void sendDataLine(float t, float h, float b)
+{
+      Serial.print("^"); // start with a start of data marker (SOD)
+      Serial.print(millis());
+      Serial.print(",");
+      Serial.print(t);
+      Serial.print(",");
+      Serial.print(h);
+      Serial.print(",");
+      Serial.print(b);
+      Serial.println("$"); // last one including EOD marker ($) and LF
+}
+
 // Set the counter to zero measurements (byte 0: at maximum 254 measurements)
 // Do not really clear data (overwrite): EEPROM write ability is limited.
 void resetData()
@@ -236,15 +250,15 @@ void createDummyData(int n)
     b = random(900, 1154);
     Serial.println((String)millis() + "," + (String)t + "," + (String)h + "," +  (String)b);
     
-    // Not in streaming mode: write to output
+    // Not in streaming mode: store data
     if (!streamingMode)
-      writeData(t, h, b);
+      storeData(t, h, b);
   }
 }
 
-/* Write the measured values, automatically
+/* Store the measured values, automatically
    adds to the 'file' */
-void writeData(float t, float h, int b)
+void storeData(float t, float h, int b)
 {
   /* Get the position (and reset, if turned over). */
   if (EEPROM.read(0) == 254)
@@ -352,7 +366,7 @@ void processCommandLine()
         DEBUG = true;
         sendSerialString("DEBUG ON");
         break;
-      case 2: // Start calibration mode (need to send 02 for this command)
+      case 2: // Start clock calibration mode (need to send 02 for this command)
         DEBUG = true;
         if (DEBUG) sendSerialString("Calibration mode, interval: " + cmdParam + " milliseconds");
         measurementInterval = cmdParam.toInt();
@@ -479,24 +493,21 @@ void loop()
     else
       b = 900;
     
-    // Not in streamingmode: store to flash (eeprom)
+    // Not in streamingmode: store the data
     if (!streamingMode)
     {
-      writeData(t, h, b);
+      storeData(t, h, b);
     }
     else // Stream results
     {
-      if ((calibrationMode) || (streamingMode))
+      if (calibrationMode)
       {
-        Serial.print(millis());
+        Serial.print((String)measurementInterval);
         Serial.print(",");
+        Serial.println(millis());
       }
-      Serial.print(t);
-      Serial.print(",");
-      Serial.print(h);
-      Serial.print(",");
-      Serial.print(b);
-      Serial.println();
+      else
+        sendDataLine(t, h, b);
     }
     
     // Blink for the measurement

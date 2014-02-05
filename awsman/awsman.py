@@ -357,9 +357,11 @@ if (mode.startswith("station-")):
   sys.exit()
 
 # Deal with cached measurements
-# Show the cache or purge it
+# Show the cache, clear it or purge it
 if (mode == "cache-show"):
   showCache()
+elif (mode == "cache-purge"):
+  purgeCache(statuuid, statkey)
 elif (mode == "cache-clear"):
   clearCache()
 
@@ -367,7 +369,7 @@ elif (mode == "cache-clear"):
 # Receive streaming data (listen to output of arduino)
 # and upload to the server
 # -test mode: do not upload to the server 
-# It will also every 10 measurements try to purge the cache
+# It will also every 10 minutes try to purge the cache
 if (mode == "streaming" or mode == "streaming-test"):
   if len(sys.argv) < 3:
     print "* ERROR Missing commandline arguments *\n"
@@ -376,7 +378,10 @@ if (mode == "streaming" or mode == "streaming-test"):
   cachewait = 600 # wait 10 minutes before trying to empty the cache
   cachetimer = time.time() # this many seconds of measurements before trying to purge the error cache
   purgeCache(statuuid, statkey) # empty cache
-  print "\nStreaming measurement mode"
+  if mode == "streaming":
+    print "\nStreaming measurement mode"
+  else:
+    print "\nWARNING Streaming test mode, data will not be stored!"
   if (len(sys.argv) == 4):
     interval = sys.argv[3]
     print "Measurement interval [sec]: " + str(interval)
@@ -394,23 +399,27 @@ if (mode == "streaming" or mode == "streaming-test"):
   s.write(cmd)
   print "Waiting for data..."
   while True:
-    line = s.readline()
-    millis = float(line.split(",")[0])
-    temp = float(line.split(",")[1])
-    humid = float(line.split(",")[2])
-    baro = line.split(",")[3].strip()
-    clocktime = datetime.now()
-    mtime = clocktime.strftime("%Y%m%dT%H%M%S")
-    sys.stdout.write("%(c)s,%(m)s,%(t)s,%(h)s,%(b)s\n" % {'c':mtime, 'm':millis, 't':temp, 'h':humid, 'b':baro})
-    # Upload to the server (only when not in test mode)
-    if mode == "streaming":
-      insertMeasurement(statuuid, statkey, mtime, "temp", str(temp), False)
-      insertMeasurement(statuuid, statkey, mtime, "humid", str(humid), False)
-      insertMeasurement(statuuid, statkey, mtime, "baro", str(baro), False)
-    # Try to upload the cache (when not in test mode)
-    if mode == "streaming" and ((time.time() - cachetimer) >= cachewait):
-      purgeCache(statuuid, statkey) # empty cache
-      cachetimer = time.time() # reset counter
+    received = s.readline().strip()
+    if not received.startswith("^") or not received.endswith("$"):
+      print "WARNING Ignoring incomplete line of data"
+    else:
+      line = received.strip('^$')
+      millis = float(line.split(",")[0])
+      temp = float(line.split(",")[1])
+      humid = float(line.split(",")[2])
+      baro = line.split(",")[3].strip()
+      clocktime = datetime.now()
+      mtime = clocktime.strftime("%Y%m%dT%H%M%S")
+      sys.stdout.write("%(c)s,%(m)s,%(t)s,%(h)s,%(b)s\n" % {'c':mtime, 'm':millis, 't':temp, 'h':humid, 'b':baro})
+      # Upload to the server (only when not in test mode)
+      if mode == "streaming":
+        insertMeasurement(statuuid, statkey, mtime, "temp", str(temp), False)
+        insertMeasurement(statuuid, statkey, mtime, "humid", str(humid), False)
+        insertMeasurement(statuuid, statkey, mtime, "baro", str(baro), False)
+      # Try to upload the cache (when not in test mode)
+      if mode == "streaming" and ((time.time() - cachetimer) >= cachewait):
+        purgeCache(statuuid, statkey) # empty cache
+        cachetimer = time.time() # reset counter
 
 # Offline mode: download/upload ################################################################
 # Upload to the server
@@ -502,7 +511,6 @@ if (mode == "data-getlog"):
     print "Time pattern not correct."
     sys.exit()
 
-  #filename = "data" + os.path.sep + statuuid.strip() + "_" + datetime.now().strftime("%Y%m%dT%H%M%S") + ".awd"
   filename = "data" + os.path.sep + statuuid.strip() + "_" + sys.argv[3] + ".awd"
   if os.path.exists(filename):
     print "\nFile already exists, remove it manually if you want to download again to this file:"

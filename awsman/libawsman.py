@@ -22,7 +22,7 @@ except:
   print ""
 
 apiversion = "1.0"
-weather_logger_version = "1"
+weather_logger_version = "2"
 HTTPTIMEOUTERRORTIME=time.time()
 HTTPTIMEOUT=15
 
