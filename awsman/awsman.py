@@ -93,7 +93,7 @@ def getSerialPort(portname):
       ttys = glob.glob("/dev/tty.usbmodem*")
       ttyport = ttys[0]
     elif platform.system() == "Linux":
-      ttys = glob.glob("/dev/ttyUSB*")
+      ttys = glob.glob("/dev/ttyACM*")
       ttyport = ttys[0]
     else:
       ttyport = portname
