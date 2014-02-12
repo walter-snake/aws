@@ -40,6 +40,9 @@ Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 #define DHTTYPE DHT22   // DHT 22
 DHT dht(DHTPIN, DHTTYPE);
 
+// The led
+int led = 13;
+
 /* Time ---------------------------------------------------------- */
 // Measurement interval/auto stop, command mode
 unsigned long defaultMeasurementInterval = 900000; // this is the default, when the measurementinterval was not set differently
@@ -110,16 +113,16 @@ void fastBlink(int n)
   {
     if (enableMeasurement)
     {
-      pinMode(13, LOW);
+      digitalWrite(led, HIGH);
       delay(75);
-      pinMode(13, HIGH);
+      digitalWrite(led, LOW);
       delay(75);
     }
     else
     {
-      pinMode(13, HIGH);
+      digitalWrite(led, LOW);
       delay(75);
-      pinMode(13, LOW);
+      digitalWrite(led, HIGH);
       delay(75);
     }
   }
@@ -196,7 +199,7 @@ void sendData()
   delay(100);
   
   // Output the data (Number of Records, values)
-  pinMode(13, HIGH); // led off (download happens in command mode when the is on)
+  digitalWrite(led, LOW); // led off (download happens in command mode when the is on)
   Serial.println("#DATA");
   Serial.println("#NR:" + (String)n);
   Serial.println("#INTERVAL_MILLISECONDS:" + (String)measurementInterval);
@@ -213,7 +216,7 @@ void sendData()
     Serial.println("," + (String)decodeB(EEPROM.read(pos + 15)));
   }    
   Serial.println("#END");
-  pinMode(13, LOW); // led on
+  digitalWrite(led, HIGH); // led on
 }
 
 // Stream measured data: send one line
@@ -428,11 +431,13 @@ void processCommandLine()
 /* Set up the Arduino -------------------------------------- */
 void setup()
 {
+  pinMode(led, OUTPUT);
+  
   Serial.begin(9600); 
   Serial.flush();
   
   fastBlink(20); // Inform user that setup routine has started and Serial port is active
-  delay(5000); // gives the time to open the monitor and catch any output
+  delay(5000); // gives the time to open the monitor and catch any output (just for debugging)
   
   // Setup sensors
   dht.begin();
@@ -449,7 +454,7 @@ void setup()
 
   // We need to wait a while after initializing the sensors
   delay(2000);
-  pinMode(13, LOW);
+  digitalWrite(led, HIGH);
   
   // Get the measurement time interval, read from memory or use default
   measurementInterval = getMeasurementInterval();
@@ -481,7 +486,7 @@ void loop()
   if (doMeasurement())
   {
     // Turn off the light
-    pinMode(13, HIGH);
+    digitalWrite(led, LOW);
         
     // T, H data
     float t = dht.readTemperature();
