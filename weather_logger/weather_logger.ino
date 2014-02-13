@@ -378,11 +378,14 @@ void processCommandLine()
         streamingMode = true;
         commandTimeOut = millis() + 1000; // make sure it starts soon sending data
         break;
-      case 3: // Start debug mode (need to send 03 for this command)
-        sendSerialString("Arduino based weather data collector and logger.");
+      case 3: // Send status info (need to send 03 for this command)
+        sendSerialString("Arduino based weather data collector.");
         sendSerialString("Copyright (c) 2014 W. Boasson");
+        sendSerialString("License: MIT");
         sendSerialString("Serial connection established");
-        sendSerialString("Software version: " + (String)version);
+        sendSerialString("Measurement interval set to: " + (String)measurementInterval + " [ms]");
+        sendSerialString("Startup mode (1 = streaming; 0 = datalogger): " + (String)streamingMode);
+        sendSerialString("Software version: " + (String)version); // this must be the last output
         break;
       case 10: // Clear the data
         if (DEBUG) sendSerialString("Clear the data");
